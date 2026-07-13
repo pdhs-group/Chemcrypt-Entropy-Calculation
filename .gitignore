@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Output Files
+CMY-4L-P81-EXT/calculation_binning_output
+CMY-6L-PM90-EXT/calculation_binning_output
+CMY-6L-PM90-REF/calculation_binning_output
+
+# AI Agents
+.continue/agents
