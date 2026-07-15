@@ -2,6 +2,7 @@ import math
 from collections import defaultdict
 import numpy as np
 import json
+import itertools
 
 def load_data(data_path,sample_name_path,wavelength_path):
 
@@ -40,7 +41,7 @@ def calculate_average_std_dev(extinction, sample_names):
     avg_std_dev_per_wv = std_dev_matrix.mean(axis=0).round(3)
     return avg_std_dev_per_wv, std_dev_matrix
 
-def calculate_bins_per_wavelength(min_max_array, avg_std_dev_per_wv):
+def calculate_bins_per_wavelength(min_max_array, avg_std_dev_per_wv, S):
 
     n_wv = min_max_array.shape[0]
     bin_edges_list = defaultdict(list)
@@ -50,7 +51,7 @@ def calculate_bins_per_wavelength(min_max_array, avg_std_dev_per_wv):
     for i in range(n_wv):
         wl, wl_min, wl_max = min_max_array[i]
         #bin_width = float(avg_std_dev_per_wv[i])
-        bin_width = float(4 * avg_std_dev_per_wv[i])        # Range Rule of Thumb
+        bin_width = float(S * avg_std_dev_per_wv[i])        # Range Rule of Thumb
         if bin_width == 0:
             bin_width = 1e-10
         num_bins = int(math.ceil((wl_max - wl_min) / bin_width))
@@ -96,6 +97,28 @@ def compute_binned_probability(bin_matrix, wavelengths):
             binned_distributions[wl][int(b)] = cnt / n_samples
     
     return binned_distributions
+
+def compute_conditional_binned_entropy(bin_matrix, wavelength, sample_names):
+    unique_samples = np.unique(sample_names)
+    cond_entropy = {}
+
+    for config in unique_samples:
+        indices = (sample_names == config)
+        bin_curves = bin_matrix[indices]  # shape (30, 1065)
+        total_entropy = 0.0
+
+        for j in range(bin_curves.shape[1]):
+            bins_at_wl = bin_curves[:, j]
+            _, counts = np.unique(bins_at_wl, return_counts=True)
+
+            total = len(bins_at_wl)
+            probs = [c / total for c in counts]
+            H_wl = sum(-p * math.log2(p) if p > 0 else 0 for p in probs)
+            total_entropy += H_wl
+
+        cond_entropy[config] = total_entropy
+
+    return cond_entropy, np.mean(list(cond_entropy.values()))
 
 
 def compute_binned_entropy(binned_distributions, wavelengths):
@@ -143,6 +166,51 @@ def calculate_input_entropy(sample_names):
     total_samples = len(unique_samples)
     
     return math.log2(total_samples) if total_samples > 0 else 0
+
+def compute_binned_collision_rate_exclude_same_config(bin_matrix, sample_names):
+
+    config_to_curves = defaultdict(list)
+    for i, name in enumerate(sample_names):
+        # Hashable tuple of bin indices for this measurement
+        config_to_curves[name].append(tuple(bin_matrix[i]))
+
+    unique_configs = list(config_to_curves.keys())
+    total_inter_config_pairs = 0
+    collision_count = 0
+    collisions_per_config = defaultdict(list)
+
+    # Compare **different** configurations only
+    for name1, name2 in itertools.combinations(unique_configs, 2):
+        curves1 = config_to_curves[name1]
+        curves2 = config_to_curves[name2]
+
+        threshold = min(len(curves1), len(curves2))
+        # Compare 90% to handle repeats
+        for c1 in curves1[:threshold]:
+            for c2 in curves2[:threshold]:
+                total_inter_config_pairs += 1
+                if c1 == c2:
+                    collision_count += 1
+                    collisions_per_config[name1].append(name2)
+                    collisions_per_config[name2].append(name1)
+
+    # Collision rate
+    collision_rate = (
+        (collision_count / total_inter_config_pairs * 100)
+        if total_inter_config_pairs > 0 else 0
+    )
+
+    print(f"Total inter-configuration pairs: {total_inter_config_pairs}")
+    print(f"Collisions detected: {collision_count}")
+    print(f"Collision rate: {collision_rate:.4f}%")
+
+    return {
+        "total_inter_config_pairs": total_inter_config_pairs,
+        "collision_count": collision_count,
+        "collision_rate": collision_rate,
+        "collisions_per_config": dict(collisions_per_config)
+    }
+
 
 def save_dict_to_json(data_dict, output_filename):
     with open(output_filename, 'w') as json_file:
