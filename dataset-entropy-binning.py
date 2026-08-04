@@ -71,6 +71,13 @@ info_per_sample, avg_info = compute_binned_information_content_per_sample(bin_ma
 save_output_to_txt(info_per_sample, f"{output_path}/info_per_sample.txt")
 print("\nInformation per Sample - File created")
 
+wv_entropy_performance = compute_wv_entropy_diff_from_max(binned_distributions, wavelengths)
+save_dict_to_json(wv_entropy_performance,f"{output_path}/entropy_diff_from_max.json")
+print(f"\nEntropy difference from Max - file created")
+
+plot_json_dict_data(wv_entropy_performance, f"{output_path}/Entropy_diff_from_max")
+print("Entropy difference Path plot created")
+
 efficiency_independent = system_entropy_efficiency(total_entropy, max_entropy)
 efficiency_conditional = system_entropy_efficiency(avg_cond_entropy,total_entropy)
 

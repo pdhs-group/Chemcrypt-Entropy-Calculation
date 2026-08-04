@@ -3,6 +3,7 @@ from collections import defaultdict
 import numpy as np
 import json
 import itertools
+import matplotlib.pyplot as plt
 
 def load_data(data_path,sample_name_path,wavelength_path):
 
@@ -51,7 +52,7 @@ def calculate_bins_per_wavelength(min_max_array, avg_std_dev_per_wv, S):
     for i in range(n_wv):
         wl, wl_min, wl_max = min_max_array[i]
         #bin_width = float(avg_std_dev_per_wv[i])
-        bin_width = float(S * avg_std_dev_per_wv[i])        # Range Rule of Thumb
+        bin_width = float(S * avg_std_dev_per_wv[i])        
         if bin_width == 0:
             bin_width = 1e-10
         num_bins = int(math.ceil((wl_max - wl_min) / bin_width))
@@ -120,7 +121,6 @@ def compute_conditional_binned_entropy(bin_matrix, wavelength, sample_names):
 
     return cond_entropy, np.mean(list(cond_entropy.values()))
 
-
 def compute_binned_entropy(binned_distributions, wavelengths):
 
     entropy_per_wavelength = []
@@ -130,6 +130,7 @@ def compute_binned_entropy(binned_distributions, wavelengths):
         entropy_per_wavelength.append((wl, H))
     total_entropy = sum(e for _, e in entropy_per_wavelength)
     average_entropy = total_entropy / len(entropy_per_wavelength)
+
     return entropy_per_wavelength, average_entropy, total_entropy
 
 
@@ -171,7 +172,7 @@ def compute_binned_collision_rate_exclude_same_config(bin_matrix, sample_names):
 
     config_to_curves = defaultdict(list)
     for i, name in enumerate(sample_names):
-        # Hashable tuple of bin indices for this measurement
+
         config_to_curves[name].append(tuple(bin_matrix[i]))
 
     unique_configs = list(config_to_curves.keys())
@@ -179,13 +180,12 @@ def compute_binned_collision_rate_exclude_same_config(bin_matrix, sample_names):
     collision_count = 0
     collisions_per_config = defaultdict(list)
 
-    # Compare **different** configurations only
     for name1, name2 in itertools.combinations(unique_configs, 2):
         curves1 = config_to_curves[name1]
         curves2 = config_to_curves[name2]
 
         threshold = min(len(curves1), len(curves2))
-        # Compare 90% to handle repeats
+
         for c1 in curves1[:threshold]:
             for c2 in curves2[:threshold]:
                 total_inter_config_pairs += 1
@@ -194,15 +194,14 @@ def compute_binned_collision_rate_exclude_same_config(bin_matrix, sample_names):
                     collisions_per_config[name1].append(name2)
                     collisions_per_config[name2].append(name1)
 
-    # Collision rate
     collision_rate = (
         (collision_count / total_inter_config_pairs * 100)
         if total_inter_config_pairs > 0 else 0
     )
 
-    print(f"Total inter-configuration pairs: {total_inter_config_pairs}")
-    print(f"Collisions detected: {collision_count}")
-    print(f"Collision rate: {collision_rate:.4f}%")
+    #print(f"Total inter-configuration pairs: {total_inter_config_pairs}")
+    #print(f"Collisions detected: {collision_count}")
+    #print(f"Collision rate: {collision_rate:.4f}%")
 
     return {
         "total_inter_config_pairs": total_inter_config_pairs,
@@ -212,6 +211,20 @@ def compute_binned_collision_rate_exclude_same_config(bin_matrix, sample_names):
     }
 
 
+def compute_wv_entropy_diff_from_max(binned_distributions, wavelengths):
+
+    data = defaultdict(int)
+
+    for wl in wavelengths:
+        dist = binned_distributions[wl]
+        H = sum(-p * math.log2(p) for p in dist.values() if p > 0)
+
+        H_max = math.log2(len(list(dist.keys())))
+
+        data[wl] = H_max - H
+
+    return data
+
 def save_dict_to_json(data_dict, output_filename):
     with open(output_filename, 'w') as json_file:
         json.dump(data_dict, json_file, indent=4)
@@ -220,3 +233,15 @@ def save_output_to_txt(data, output_filename):
     with open(output_filename, 'w') as f:
         for item in data:
             f.write(f"{item}\n")
+
+def plot_json_dict_data(data, output_path):
+
+    plt.bar(list(data.keys()), list(data.values()), color = 'blue', edgecolor = 'blue', width=1.5)
+    plt.title(f"Differences of every component from max possible entropy")
+    plt.xlabel(f'Wavelengths')
+    plt.ylabel('Entropy differences from max')
+    plt.xticks(fontsize=8, rotation=45, ha='right')
+
+    plt.grid(axis='y', linestyle = '--', alpha = 0.75)
+
+    plt.savefig(output_path)
