@@ -14,28 +14,34 @@ def compute_mcv_sample(bin_matrix,sample_names):
     min_entropy = np.empty((len(unique_configs),bin_matrix.shape[1]))
     min_entropy_per_sample = defaultdict(int)
 
-    for row_idx, config in enumerate(unique_configs):
+    # We need to handle groups of 10 samples per print
+    group_size = 10
+    all_group_entropies = []
+
+    for config in unique_configs:
         mask = (sample_names == config)
         config_op = bin_matrix[mask]
+        
+        # Split config_op into groups of 10
+        num_groups = math.ceil(config_op.shape[0] / group_size)
+        
+        for g in range(num_groups):
+            group_op = config_op[g*group_size : (g+1)*group_size]
+            
+            group_entropy = 0.0
+            for col_idx in range(group_op.shape[1]):
+                col = group_op[:, col_idx]
+                counts = Counter(col)
+                n_samples = len(col)
+                
+                mcv_value, mcv_count = counts.most_common(1)[0]
+                p_mcv = mcv_count / n_samples
+                group_entropy += -math.log2(p_mcv)
+            
+            all_group_entropies.append(group_entropy)
+            min_entropy_per_sample[f"{config}_g{g}"] = group_entropy
 
-        if config_op.size == 0:
-            min_entropy_per_sample[config] = 0.0
-            continue
-
-        # Compute min‑entropy for each wavelength (column) within this configuration
-        for col_idx in range(config_op.shape[1]):
-            col = config_op[:, col_idx]
-            counts = Counter(col)
-            n_samples = len(col)
-
-            mcv_value, mcv_count = counts.most_common(1)[0]
-            p_mcv = mcv_count / n_samples
-
-            min_entropy[row_idx, col_idx] = -math.log2(p_mcv)
-
-        min_entropy_per_sample[config] = np.sum(min_entropy[row_idx, :])
-
-    total_min_entropy = sum(min_entropy_per_sample.values()) / len(unique_configs)
+    total_min_entropy = np.mean(all_group_entropies)
 
     return min_entropy, min_entropy_per_sample, total_min_entropy
 

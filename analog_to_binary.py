@@ -53,26 +53,34 @@ def get_hamming_weights(bin_data):
 def get_hamming_weight_diff(hw_data):
     hamming_weight_diff = defaultdict(list)
     total_configs = 0
+    group_size = 10
 
-    for config,hw in hw_data.items():
+    for config, hw in hw_data.items():
         np_hws = np.array(hw)
-        median_hw = np.median(np_hws)
-        hamming_weight_diff[config] = (np_hws - median_hw).tolist()
+        num_groups = math.ceil(len(np_hws) / group_size)
+        diffs = []
+        
+        for g in range(num_groups):
+            group_hws = np_hws[g*group_size : (g+1)*group_size]
+            median_hw = np.median(group_hws)
+            diffs.extend((group_hws - median_hw).tolist())
+            
+        hamming_weight_diff[config] = diffs
         total_configs += 1
 
     print(f"Total configs processed: {total_configs}")
-    return hamming_weight_diff  
+    return hamming_weight_diff
 
 
 def plot_hamming_weight_differences(hm_wt_diff, op_loc):
 
     for config,hw_diffs in hm_wt_diff.items():
 
-        plt.plot(list(range(1,len(hw_diffs) + 1)), hw_diffs, color = 'b')
+        plt.bar(list(range(1,len(hw_diffs) + 1)), hw_diffs, color = 'b')
         plt.xticks(list(range(1,len(hw_diffs) + 1)))
         plt.grid(True,which="both")
-        plt.title(f"Hamming weight differences - Median value , Sample : {str(config)}")
-        plt.xlabel(f"Samples 1 - 30 : {str(config)}")
+        plt.title(f"Hamming weight differences - Group Median value , Sample : {str(config)}")
+        plt.xlabel(f"Samples : {str(config)}")
         plt.ylabel("Hamming weight diffs")
         plt.xticks(rotation=45)
         plt.savefig(f"{op_loc}/HW_Diffs-{config}")
@@ -101,29 +109,35 @@ def intra_sample_hamming_distance(bin_data, config_name):
 
     intra_config_hw_distance = defaultdict(int)
     total_intra_config_pairs = 0
+    group_size = 10
+    num_groups = math.ceil(len(bin_data[config_name]) / group_size)
 
-    for i, bitstring1 in enumerate(bin_data[config_name]):
-        for j, bitstring2 in enumerate(bin_data[config_name][i + 1 : ]):
-            total_intra_config_pairs += 1
+    for g in range(num_groups):
+        for i, bitstring1 in enumerate(bin_data[config_name][g * group_size: (g + 1)*group_size]):
+                for j, bitstring2 in enumerate(bin_data[config_name][g * group_size + i + 1 : (g + 1)*group_size ]):
+                    total_intra_config_pairs += 1
+                    xor_result = int(bitstring1,2) ^ int(bitstring2,2)
+                    intra_config_hw_distance[f"({g*group_size + i + 1},{g*group_size + i + 1 + j + 1})"] = bin(xor_result).count('1')
 
-            xor_result = int(bitstring1,2) ^ int(bitstring2,2)
-            intra_config_hw_distance[f"({i + 1},{i + 1 + j + 1})"] = bin(xor_result).count('1')
-
-    print(f"\n Total Intra config pairs: {total_intra_config_pairs}\n")
+    #print(f"\n Total Intra config pairs: {total_intra_config_pairs}\n")
     return intra_config_hw_distance
 
-def plot_intra_confg_hamming_distance_bar(hd_data, config_name):
-    plt.bar(list(hd_data.keys()), list(hd_data.values()), color = 'blue', edgecolor = 'black', width=0.5)
 
-    plt.title(f"Hamming distances for every combination - {config_name}")
-    plt.xlabel(f'Sample combinations (Tuples)')
-    plt.ylabel('Hamming Distances')
-    plt.xticks(fontsize=8, rotation=45, ha='right')
+def plot_intra_hamming_distance_differences (binary_op_data, configs, op_loc):
+    for config_name in configs:
+        hd_data = intra_sample_hamming_distance(binary_op_data,config_name)
+        plt.bar(list(hd_data.keys()), list(hd_data.values()), color = 'blue', edgecolor = 'black', width=0.5)
 
-    plt.grid(axis='y', linestyle = '--', alpha = 0.5)
+        plt.title(f"Hamming distances for every combination - {config_name}")
+        plt.xlabel(f'Sample combinations (Tuples)')
+        plt.ylabel('Hamming Distances')
+        plt.xticks(fontsize=8, rotation=45, ha='right')
 
-    plt.show()
+        plt.grid(axis='y', linestyle = '--', alpha = 0.5)
+        plt.savefig(f"{op_loc}/HD_Diffs-{config_name}")
 
+        print(f"Hamming Distance Diffs : {config_name} saved ")
+        plt.clf()
 
 config = sys.argv[1] if len(sys.argv) > 1 else exit(1)
 
@@ -135,6 +149,7 @@ wavelengths_path = config + "/numpy-files/wavelength.npy"
 
 output_path = f"{config}/Binary_Transformation"
 output_path_hamming_weights = f"{output_path}/HW_plots_S-{S_factor}"
+output_path_hamming_distances = f"{output_path}/HD_plots_S-{S_factor}"
 
 if os.path.isdir(output_path):
     shutil.rmtree(output_path)
@@ -144,6 +159,9 @@ os.mkdir(output_path)
 print(f"\nOutput folder created in {config} ")
 
 os.mkdir(output_path_hamming_weights)
+print(f"\nHammimg plots Output folder created in {config} ")
+
+os.mkdir(output_path_hamming_distances)
 print(f"\nHammimg plots Output folder created in {config} ")
 
 extinction, sample_names, wavelengths = load_data(extinction_path, sample_names_path, wavelengths_path)
@@ -165,11 +183,8 @@ save_dict_to_json(binary_hamming_weights,f"{output_path}/binary_hamming_data")
 print("\nSaved Binary Hamming Weights to JSON")
 
 plot_hamming_weight_differences(hamming_weight_differences, output_path_hamming_weights)
+plot_intra_hamming_distance_differences(binary_output_data,np.unique(sample_names),output_path_hamming_distances)
 
-print(compute_inter_collision_binary(binary_output_data))
-
-'''
-intra_Sample_hd_data = intra_sample_hamming_distance(binary_output_data,'CCMMYY')
-print(intra_Sample_hd_data)
-plot_intra_confg_hamming_distance_bar(intra_Sample_hd_data, "CCMMYY")
-'''
+print(f"\nTotal Pairs: {compute_inter_collision_binary(binary_output_data)[0]}")
+print(f"\nTotal Collisions observed: {compute_inter_collision_binary(binary_output_data)[1]}")
+print(f"\nPossible Collision rate: {compute_inter_collision_binary(binary_output_data)[2]}")
