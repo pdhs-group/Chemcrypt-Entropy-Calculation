@@ -7,10 +7,10 @@ import json
 
 def load_data(data_path,sample_name_path,wavelength_path):
 
-    extinction = np.load(data_path).round(2)  
+    extinction = np.load(data_path)
     sample_names = np.load(sample_name_path)
     wavelengths = np.load(wavelength_path).round(2)  
-    return extinction, sample_names, wavelengths
+    return (extinction).round(2) * 100, sample_names, wavelengths
 
 def compute_sample_mean(extinction, sample_names):
 

@@ -20,3 +20,32 @@ If 2nd argument is kept blank then name is chosen by default.
 4. Get output Statistics and confirmation of calculation files being created.
 
 5. Go to the Folder of that configuration to find a sub folder which has the results of the calculations.
+
+## Object-oriented API
+
+The reusable domain classes are in `chemcrypt_oop.py`. Quantization is selected
+independently from entropy and binary analysis:
+
+```python
+from chemcrypt_oop import (
+    BinaryConversion,
+    ExperimentConfiguration,
+    FixedResolutionQuantizer,
+    StandardDeviationBinner,
+)
+
+experiment = ExperimentConfiguration.from_directory("CMY-4L-P81-EXT")
+
+# Existing wavelength-specific statistical binning
+quantized = experiment.quantize(StandardDeviationBinner(window_size=1))
+
+# Fixed 0.01 resolution quantization
+# quantized = experiment.quantize(FixedResolutionQuantizer(decimal_places=2))
+
+binary = BinaryConversion(quantized)
+print(binary.bits_per_sample)
+print(binary.inter_collisions())
+```
+
+Both quantizers produce the same `QuantizedExperiment` interface, so additional
+algorithms can be added by implementing `Quantizer.transform()`.
