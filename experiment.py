@@ -4,7 +4,7 @@ from os import path
 from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
-from entropyops_bins import *
+from entropyops import *
 from utils import *
 
 if TYPE_CHECKING:

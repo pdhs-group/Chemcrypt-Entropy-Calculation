@@ -5,7 +5,7 @@ import json
 import itertools
 import matplotlib.pyplot as plt
 import sys
-from entropyops_bins import *
+from entropyops import *
 
 def calculate_average_std_dev_measurements(extinction, sample_names):
 

@@ -1,11 +1,9 @@
-from entropyops_zzz import (
+from entropyops import (
 	calculate_input_entropy,
 	plot_entropy_per_sample,
-	save_dict_to_json,
-	save_numpy_arrays_to_csv,
-	save_output_to_txt,
 	system_entropy_efficiency,
 )
+from utils import save_dict_to_json, save_numpy_arrays_to_csv, save_output_to_txt
 from chemcrypt_oop import RawEntropyAnalysis
 import os
 import sys

@@ -1,4 +1,4 @@
-from entropyops_bins import save_dict_to_json
+from utils import save_dict_to_json
 from experiment import ExperimentConfiguration
 from quantization import StandardDeviationBinner
 import sys

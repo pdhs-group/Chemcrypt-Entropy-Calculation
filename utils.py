@@ -4,6 +4,14 @@ import shutil
 import os
 import json
 import matplotlib.pyplot as plt
+import numpy as np
+
+
+def load_data(data_path, sample_name_path, wavelength_path):
+    extinction = np.load(data_path)
+    sample_names = np.load(sample_name_path)
+    wavelengths = np.load(wavelength_path).round(2)
+    return extinction, sample_names, wavelengths
 
 def init(op_folder: str, subfolder: str):
     
@@ -31,6 +39,24 @@ def save_output_to_txt(data, output_filename):
     with open(output_filename, 'w') as f:
         for item in data:
             f.write(f"{item}\n")
+
+
+def save_numpy_arrays_to_csv(data_array, sample_names, wavelengths, output_filename):
+    pd.DataFrame(data_array, index=sample_names, columns=wavelengths).to_csv(
+        output_filename,
+        index=True,
+    )
+
+
+def data_to_dataframe(data, sample_names, wavelengths):
+    return pd.DataFrame(data, index=sample_names, columns=wavelengths)
+
+
+def combine_arrays(data, row, column):
+    return np.block([
+        [np.array([[""]]), column.astype(float).reshape(1, -1)],
+        [row.astype(str).reshape(-1, 1), data.astype(float)],
+    ])
 
 def plot_series(X_axis,*series,labels=None,colors=None,title="Values vs Wavelength",xlabel = "Data",ylabel="Value",save_path=None):
 

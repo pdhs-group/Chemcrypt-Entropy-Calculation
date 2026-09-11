@@ -131,6 +131,90 @@ class BinaryConversion:
 
         return distances
 
+    def random_sample_inter_hamming_distances_by_variation(
+        self,
+        random_seed: int | None = None,
+        samples_per_group: int = 2,
+        group_size: int = 10,
+    ) -> dict[Any, list[int]]:
+        """Return six balanced inter-configuration distances per variation pair."""
+        if samples_per_group < 1:
+            raise ValueError("samples_per_group must be at least 1")
+        if group_size < 1:
+            raise ValueError("group_size must be at least 1")
+
+        generator = np.random.default_rng(random_seed)
+        selected_samples = {
+            variation: [
+                samples[index]
+                for group_start in range(0, len(samples), group_size)
+                for index in generator.choice(
+                    np.arange(group_start, min(group_start + group_size, len(samples))),
+                    size=samples_per_group,
+                    replace=False,
+                )
+            ]
+            for variation, samples in self.outputs.items()
+            if samples and len(samples) % group_size == 0
+        }
+        distances_by_variation = {variation: [] for variation in selected_samples}
+        variations = list(selected_samples)
+
+        for first_index, first_variation in enumerate(variations):
+            first = selected_samples[first_variation]
+            for second_variation in variations[first_index + 1:]:
+                second = selected_samples[second_variation]
+                distances = [
+                    sum(left != right for left, right in zip(first_sample, second_sample))
+                    for first_sample, second_sample in zip(first, second)
+                ]
+                distances_by_variation[first_variation].extend(distances)
+                distances_by_variation[second_variation].extend(distances)
+
+        return distances_by_variation
+
+    def random_sample_inter_hamming_distances_by_pair(
+        self,
+        random_seed: int | None = None,
+        samples_per_group: int = 2,
+        group_size: int = 10,
+    ) -> dict[str, list[int]]:
+        """Return six balanced distances keyed by each configuration pair."""
+        if samples_per_group < 1:
+            raise ValueError("samples_per_group must be at least 1")
+        if group_size < 1:
+            raise ValueError("group_size must be at least 1")
+
+        generator = np.random.default_rng(random_seed)
+        selected_samples = {
+            variation: [
+                samples[index]
+                for group_start in range(0, len(samples), group_size)
+                for index in generator.choice(
+                    np.arange(group_start, min(group_start + group_size, len(samples))),
+                    size=samples_per_group,
+                    replace=False,
+                )
+            ]
+            for variation, samples in self.outputs.items()
+            if samples and len(samples) % group_size == 0
+        }
+        variations = list(selected_samples)
+        distances_by_pair = {}
+
+        for first_index, first_variation in enumerate(variations):
+            first = selected_samples[first_variation]
+            for second_variation in variations[first_index + 1:]:
+                second = selected_samples[second_variation]
+                distances_by_pair[
+                    f"{first_variation}_vs_{second_variation}"
+                ] = [
+                    sum(left != right for left, right in zip(first_sample, second_sample))
+                    for first_sample, second_sample in zip(first, second)
+                ]
+
+        return distances_by_pair
+
     def inter_hamming_distance(self, first_variation: Any, second_variation: Any) -> dict[str, int]:
         distances = {}
         for first_index, first in enumerate(self.outputs[first_variation]):

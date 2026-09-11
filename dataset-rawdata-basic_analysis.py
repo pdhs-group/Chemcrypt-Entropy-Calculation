@@ -1,4 +1,4 @@
-from entropyops_bins import *
+from entropyops import *
 from experiment import ExperimentConfiguration
 from utils import *
 from concurrent.futures import ProcessPoolExecutor

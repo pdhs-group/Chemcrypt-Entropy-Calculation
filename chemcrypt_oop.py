@@ -7,22 +7,9 @@ from quantization import (
     StandardDeviationBinner,
 )
 from binary_conversion import BinaryConversion
-from entropyops_zzz import (
-    build_entropy_matrix,
-    build_probability_matrix,
-    calculate_entropy_per_wavelength,
-    calculate_information_content_per_sample,
-    calculate_max_entropy,
-    calculate_max_output_size_per_wavelength,
-    compute_probability,
-    load_data as load_raw_data,
-    wavelength_value_frequency_lookup_matrix,
-)
-from entropyops_zzz import (
-    calculate_max_output_size_per_wavelength,
-    compute_probability,
-)
-
+from utils import save_numpy_arrays_to_csv
+from entropyops import *
+from utils import *
 
 class RawEntropyAnalysis:
     """Entropy analysis for the legacy rounded, scaled raw-value pipeline."""
@@ -41,7 +28,7 @@ class RawEntropyAnalysis:
     @classmethod
     def from_directory(cls, path: str) -> "RawEntropyAnalysis":
         numpy_path = path + "/numpy-files"
-        extinction, sample_names, wavelengths = load_raw_data(
+        extinction, sample_names, wavelengths = load_data(
             numpy_path + "/extinction.npy",
             numpy_path + "/sample_name.npy",
             numpy_path + "/wavelength.npy",

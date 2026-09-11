@@ -6,7 +6,7 @@ from itertools import combinations
 import math
 from typing import TYPE_CHECKING, Any
 import numpy as np
-from entropyops_bins import *
+from entropyops import *
 
 if TYPE_CHECKING:
     from experiment import ExperimentConfiguration

@@ -1,4 +1,4 @@
-from entropyops_bins import *
+from entropyops import *
 from experiment import ExperimentConfiguration
 from quantization import BinnedExperiment
 import numpy as np
