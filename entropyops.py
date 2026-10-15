@@ -2,33 +2,10 @@
 
 from collections import defaultdict, Counter
 import math
-import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
 from utils import *
-
-
-def compute_sample_mean(extinction, sample_names):
-    unique_samples = np.unique(sample_names)
-    row_str = unique_samples.astype(str).reshape(-1, 1)
-    mean_values = np.array(
-        [np.mean(extinction[sample_names == sample], axis=0) for sample in unique_samples]
-    ).round(2)
-    return unique_samples, mean_values, np.hstack([row_str, mean_values])
-
-
-def compute_probability(extinction, max_output_size):
-    wavelengths = list(max_output_size.keys())
-    total = extinction.shape[0]
-    distributions = defaultdict(lambda: defaultdict(int))
-    for index, wavelength in enumerate(wavelengths):
-        values = extinction[:, index].round(2)
-        unique, counts = np.unique(values, return_counts=True)
-        for value, count in zip(unique, counts):
-            distributions[wavelength][value] = count / total
-    return distributions
-
 
 def wavelength_value_frequency_lookup_matrix(extinction, max_output_size):
     frequency_matrix = np.empty(extinction.shape, dtype=int)
@@ -87,55 +64,8 @@ def calculate_max_entropy(max_output_per_wavelength):
     return sum(math.log2(size) for size in max_output_per_wavelength.values())
 
 
-def calculate_entropy_per_wavelength(distributions):
-    entropy_per_wavelength = [
-        (wavelength, sum(-p * math.log2(p) for p in distribution.values() if p > 0))
-        for wavelength, distribution in distributions.items()
-    ]
-    total_entropy = sum(value for _, value in entropy_per_wavelength)
-    return entropy_per_wavelength, total_entropy / len(entropy_per_wavelength), total_entropy
-
-
-def get_min_max_per_wavelength(extinction, wavelengths):
-    return {
-        float(wavelength): {
-            "min": float(extinction[:, index].min()),
-            "max": float(extinction[:, index].max()),
-        }
-        for index, wavelength in enumerate(wavelengths)
-    }
-
-
 def calculate_max_output_size_per_wavelength(data, wavelengths):
-    return {
-        wavelengths[index]: len(np.unique(data[:, index]))
-        for index in range(data.shape[1])
-    }
-
-
-def calculate_total_output_size(max_output_size):
-    total = 1
-    for size in max_output_size.values():
-        total *= size
-    return total
-
-
-def is_greater_than_SHA256_limit(total_output_size):
-    return total_output_size > 2**256
-
-
-def plot_distributions(wavelengths, distributions):
-    figure, axes = plt.subplots(len(wavelengths), 1, figsize=(10, 4 * len(wavelengths)))
-    axes = [axes] if len(wavelengths) == 1 else axes
-    for index, axis in enumerate(axes):
-        values, probabilities = zip(*sorted(distributions[index].items()))
-        axis.bar(values, probabilities)
-        axis.set_title(f"Wavelength: {wavelengths[index]:.2f} nm")
-        axis.set_xlabel("Extinction Value")
-        axis.set_ylabel("Probability")
-    plt.tight_layout()
-    plt.savefig("probability_distributions.png")
-    plt.show()
+    return {wavelengths[index]: len(np.unique(data[:, index])) for index in range(data.shape[1])}
 
 
 def plot_entropy_per_sample(entropy_per_sample, output_filename):
@@ -147,16 +77,6 @@ def plot_entropy_per_sample(entropy_per_sample, output_filename):
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.savefig(output_filename)
-
-
-def load_legacy_data(data_path, sample_name_path, wavelength_path):
-    """Load data using the legacy rounded-and-scaled representation."""
-    extinction, sample_names, wavelengths = load_data(
-        data_path,
-        sample_name_path,
-        wavelength_path,
-    )
-    return (extinction.round(2) * 100), sample_names, wavelengths
 
 
 def calculate_wavelength_min_max(data, wavelengths):
@@ -211,21 +131,6 @@ def calculate_average_std_dev_printing(data, sample_names):
 
 def get_optimum_sd(sd_one, sd_two, sd_three):
     return np.maximum(np.maximum(sd_one, sd_two), sd_three)
-
-
-def plot_sd(sd_one, sd_two, sd_three, wavelengths):
-    plt.plot(wavelengths, sd_one, color="r", label="Combined SD")
-    plt.plot(wavelengths, sd_two, color="g", label="Measurement SD")
-    plt.plot(wavelengths, sd_three, color="b", label="Printing SD")
-    plt.title("Combined SD, Measurement SD, Printing SD vs Wavelength")
-    plt.xlabel("Wavelength components")
-    plt.ylabel("Standard Deviation")
-    plt.xticks(rotation=45)
-    plt.legend()
-    plt.show()
-
-
-plot_SD = plot_sd
 
 
 def calculate_bins_per_wavelength(min_max_array, std_dev_per_wv, scale):
@@ -333,32 +238,6 @@ def compute_binned_information_content_per_sample(
             for column_index, wavelength in enumerate(wavelengths)
         )
     return np.column_stack([sample_names.astype(str), information]), float(information.mean())
-
-
-def compute_binned_collision_rate_exclude_same_config(quantized_matrix, sample_names):
-    config_to_curves = defaultdict(list)
-    for index, name in enumerate(sample_names):
-        config_to_curves[name].append(tuple(quantized_matrix[index]))
-    collision_count = 0
-    total_pairs = 0
-    collisions_per_config = defaultdict(list)
-    for first_name, second_name in itertools.combinations(config_to_curves, 2):
-        first_curves = config_to_curves[first_name]
-        second_curves = config_to_curves[second_name]
-        threshold = min(len(first_curves), len(second_curves))
-        for first_curve in first_curves[:threshold]:
-            for second_curve in second_curves[:threshold]:
-                total_pairs += 1
-                if first_curve == second_curve:
-                    collision_count += 1
-                    collisions_per_config[first_name].append(second_name)
-                    collisions_per_config[second_name].append(first_name)
-    return {
-        "total_inter_config_pairs": total_pairs,
-        "collision_count": collision_count,
-        "collision_rate": 100 * collision_count / total_pairs if total_pairs else 0,
-        "collisions_per_config": dict(collisions_per_config),
-    }
 
 
 def compute_wv_entropy_diff_from_max(binned_distributions, wavelengths):

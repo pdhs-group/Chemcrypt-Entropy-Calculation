@@ -11,11 +11,13 @@ This repository includes the library to calcuate entropy and statistical analysi
 
 This will create your python environment and install dependencies.
 
-3. Pass Command line Arguments to the python3 execution command to choose which experimental configuration to run.
-    python3 dataset-entropy-average.py CMY-4L-P81-EXT 
+3. Run entropy analysis with standard-deviation binning (default):
 
-This command runs the average program with 2 possible arguments {One of the three copnfigurations (See Folder Names)} {Choose name of Output file}
-If 2nd argument is kept blank then name is chosen by default.
+    python dataset-entropy-binning.py CMY-4L-P81-EXT
+
+To use fixed-resolution quantization instead:
+
+    python dataset-entropy-binning.py CMY-4L-P81-EXT --method fixed-resolution --decimal-places 2
 
 4. Get output Statistics and confirmation of calculation files being created.
 
@@ -23,24 +25,23 @@ If 2nd argument is kept blank then name is chosen by default.
 
 ## Object-oriented API
 
-The reusable domain classes are in `chemcrypt_oop.py`. Quantization is selected
-independently from entropy and binary analysis:
+The reusable domain classes are defined in their respective modules. Quantization
+is selected independently from entropy and binary analysis:
 
 ```python
-from chemcrypt_oop import (
-    BinaryConversion,
-    ExperimentConfiguration,
-    FixedResolutionQuantizer,
-    StandardDeviationBinner,
-)
+from experiment import ExperimentConfiguration
+from quantization import FixedResolutionQuantizer, StandardDeviationBinner
+from binary_conversion import BinaryConversion
 
 experiment = ExperimentConfiguration.from_directory("CMY-4L-P81-EXT")
 
 # Existing wavelength-specific statistical binning
-quantized = experiment.quantize(StandardDeviationBinner(window_size=1))
+quantizer = StandardDeviationBinner(window_size=1)
+quantized = quantizer.transform(experiment)
 
 # Fixed 0.01 resolution quantization
-# quantized = experiment.quantize(FixedResolutionQuantizer(decimal_places=2))
+# quantizer = FixedResolutionQuantizer(decimal_places=2)
+# quantized = quantizer.transform(experiment)
 
 binary = BinaryConversion(quantized)
 print(binary.bits_per_sample)

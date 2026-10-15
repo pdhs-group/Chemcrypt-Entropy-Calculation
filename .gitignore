@@ -222,7 +222,6 @@ CMY-4L-P81-EXT/calculation_binning_output
 CMY-6L-PM90-EXT/calculation_binning_output
 CMY-6L-PM90-REF/calculation_binning_output
 
-
 CMY-4L-P81-EXT/calculation_entropy_frame
 CMY-6L-PM90-EXT/calculation_entropy_frame
 CMY-6L-PM90-REF/calculation_entropy_frame
@@ -233,14 +232,11 @@ CMY-6L-PM90-REF/Binary_Transformation
 
 CMY-4L-P81-EXT/calculation_entropy_all
 
-
-
 CMY-4L-P81-EXT/Raw_Data_Analysis
-
-
 
 CMY-4L-P81-EXT/WV_Raw_data
 
+evaluation_framework_workflow.png
 
 # AI Agents
 .continue/agents

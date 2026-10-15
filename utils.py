@@ -34,11 +34,13 @@ def save_to_csv(data_array, subfolder, filename, idx = None, col = None):
 def save_dict_to_json(data_dict, output_filename):
     with open(output_filename, 'w') as json_file:
         json.dump(data_dict, json_file, indent=4)
+        print(f"{output_filename} - File created")
 
 def save_output_to_txt(data, output_filename):
     with open(output_filename, 'w') as f:
         for item in data:
             f.write(f"{item}\n")
+        print(f"{output_filename} - File Created")
 
 
 def save_numpy_arrays_to_csv(data_array, sample_names, wavelengths, output_filename):
@@ -50,6 +52,24 @@ def save_numpy_arrays_to_csv(data_array, sample_names, wavelengths, output_filen
 
 def data_to_dataframe(data, sample_names, wavelengths):
     return pd.DataFrame(data, index=sample_names, columns=wavelengths)
+
+
+def pearson_coefficient(first, second):
+    """Calculate the Pearson correlation coefficient between two vectors."""
+    
+    first = np.asarray(first, dtype=float)
+    second = np.asarray(second, dtype=float)
+    if first.shape != second.shape:
+        raise ValueError("Pearson inputs must have the same shape")
+    if first.ndim != 1:
+        raise ValueError("Pearson inputs must be one-dimensional")
+
+    first_centered = first - first.mean()
+    second_centered = second - second.mean()
+    denominator = np.linalg.norm(first_centered) * np.linalg.norm(second_centered)
+    if denominator == 0:
+        return float("nan")
+    return float(np.dot(first_centered, second_centered) / denominator)
 
 
 def combine_arrays(data, row, column):

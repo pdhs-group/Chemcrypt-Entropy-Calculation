@@ -431,6 +431,125 @@ def plot_combined_fractional_hamming_distance_histograms(
         plt.close()
         print(f"Combined fractional Hamming distance histogram saved: {output_file}")
 
+
+def calculate_common_hamming_threshold_metrics(
+    binary_op_data,
+    configs,
+    random_seed=42,
+    threshold=None,
+):
+    """Calculate per-configuration errors for an empirical or manual threshold."""
+    bits_per_sample = binary_op_data.bits_per_sample
+    if bits_per_sample < 1:
+        raise ValueError("bits_per_sample must be positive")
+
+    inter_distances_by_config = (
+        binary_op_data.random_sample_inter_hamming_distances_by_variation(random_seed)
+    )
+    intra_by_config = {}
+    inter_by_config = {}
+    all_intra = []
+    all_inter = []
+
+    for config_name in configs:
+        intra = np.asarray(
+            list(binary_op_data.intra_hamming_distance_all_samples(config_name).values()),
+            dtype=float,
+        ) / bits_per_sample
+        inter = np.asarray(
+            inter_distances_by_config.get(config_name, []),
+            dtype=float,
+        ) / bits_per_sample
+        intra_by_config[str(config_name)] = intra
+        inter_by_config[str(config_name)] = inter
+        all_intra.extend(intra.tolist())
+        all_inter.extend(inter.tolist())
+
+    all_intra = np.asarray(all_intra, dtype=float)
+    all_inter = np.asarray(all_inter, dtype=float)
+    if all_intra.size == 0 or all_inter.size == 0:
+        raise ValueError("Both intra- and inter-configuration distances are required")
+
+    if threshold is None:
+        candidate_thresholds = np.unique(np.concatenate((all_intra, all_inter)))
+        error_counts = [
+            np.count_nonzero(all_intra > candidate)
+            + np.count_nonzero(all_inter < candidate)
+            for candidate in candidate_thresholds
+        ]
+        threshold = float(candidate_thresholds[int(np.argmin(error_counts))])
+        threshold_selection = "minimum total strict-threshold errors"
+    else:
+        threshold = float(threshold)
+        if not 0.0 <= threshold <= 1.0:
+            raise ValueError("threshold must be between 0.0 and 1.0")
+        threshold_selection = "manual threshold"
+
+    metrics = {}
+    for config_name in intra_by_config:
+        intra = intra_by_config[config_name]
+        inter = inter_by_config[config_name]
+        false_rejections = int(np.count_nonzero(intra > threshold))
+        false_acceptances = int(np.count_nonzero(inter < threshold))
+        metrics[config_name] = {
+            "intra_pair_count": int(intra.size),
+            "false_rejection_count": false_rejections,
+            "false_rejection_ratio": (
+                false_rejections / int(intra.size) if intra.size else 0.0
+            ),
+            "inter_pair_count": int(inter.size),
+            "false_acceptance_count": false_acceptances,
+            "false_acceptance_ratio": (
+                false_acceptances / int(inter.size) if inter.size else 0.0
+            ),
+        }
+
+    return {
+        "threshold": threshold,
+        "threshold_selection": threshold_selection,
+        "global_false_rejection_ratio": float(
+            np.count_nonzero(all_intra > threshold) / all_intra.size
+        ),
+        "global_false_acceptance_ratio": float(
+            np.count_nonzero(all_inter < threshold) / all_inter.size
+        ),
+        "metrics_by_configuration": metrics,
+    }
+
+
+def plot_thresholded_combined_histogram(
+    binary_op_data,
+    config_name,
+    threshold,
+    op_loc,
+):
+    """Plot one combined histogram with the common classification threshold."""
+    os.makedirs(op_loc, exist_ok=True)
+    bits_per_sample = binary_op_data.bits_per_sample
+    intra_distances = binary_op_data.intra_hamming_distance_all_samples(config_name)
+    inter_distances = binary_op_data.random_sample_inter_hamming_distances_by_variation(
+        random_seed=42
+    ).get(config_name, [])
+    intra = np.asarray(list(intra_distances.values()), dtype=float) / bits_per_sample
+    inter = np.asarray(inter_distances, dtype=float) / bits_per_sample
+
+    plt.figure()
+    bins = np.linspace(0.0, 1.0, 101)
+    plt.hist(intra, bins=bins, alpha=0.7, label=f"Intra-configuration ({intra.size})")
+    plt.hist(inter, bins=bins, alpha=0.7, label=f"Inter-configuration ({inter.size})")
+    plt.axvline(threshold, color="black", linestyle="--", linewidth=2,
+                label=f"Threshold = {threshold:.6f}")
+    plt.title(f"Fractional Hamming distance classification - {config_name}")
+    plt.xlabel("Fractional Hamming distance")
+    plt.ylabel("Pair count")
+    plt.xlim(0.0, 1.0)
+    plt.grid(axis="y", linestyle="--", alpha=0.5)
+    plt.legend()
+    plt.tight_layout()
+    output_file = os.path.join(op_loc, f"Thresholded_fHD-{config_name}.png")
+    plt.savefig(output_file, dpi=300)
+    plt.close()
+
 def calculate_pseudorandomness(hd_data, op_size):
     randomness = defaultdict(list)
     for config, data in hd_data.items():
@@ -444,11 +563,7 @@ config = sys.argv[1] if len(sys.argv) > 1 else exit(1)
 S_factor = int(sys.argv[2] if len(sys.argv) > 2 else 1)
 x_min = float(sys.argv[3]) if len(sys.argv) > 3 else 0.0
 x_max = float(sys.argv[4]) if len(sys.argv) > 4 else 1.0
-plot_individual_histograms = (
-    sys.argv[5].lower() in {"1", "true", "yes"}
-    if len(sys.argv) > 5
-    else False
-)
+plot_individual_histograms = (sys.argv[5].lower() in {"1", "true", "yes"} if len(sys.argv) > 5 else False)
 
 output_path = f"{config}/Binary_Transformation"
 output_path_hamming_distances = f"{output_path}/HD_plots_S-{S_factor}"
@@ -516,6 +631,23 @@ save_dict_to_json(
     binary.random_sample_inter_hamming_distances_by_pair(random_seed=42),
     os.path.join(histogram_data_path, "inter_config.json"),
 )
+
+manual_threshold = float(sys.argv[6]) if len(sys.argv) > 6 else None
+threshold_metrics = calculate_common_hamming_threshold_metrics(
+    binary,
+    experiment.variation_names,
+    random_seed=42,
+    threshold=manual_threshold,
+)
+save_dict_to_json(
+    threshold_metrics,
+    os.path.join(histogram_data_path, "hamming_threshold_metrics.json"),
+)
+print(
+    f"\nCommon fractional Hamming distance threshold: "
+    f"{threshold_metrics['threshold']:.6f}"
+)
+print("Saved false rejection and false acceptance metrics")
 print(f"\nSaved histogram distance data to {histogram_data_path}")
 
 if plot_individual_histograms:
@@ -570,3 +702,15 @@ plot_combined_fractional_hamming_distance_histograms(
     random_seed=42,
     x_limits=(x_min, x_max),
 )
+
+threshold_histogram_path = os.path.join(
+    output_path_hamming_distances,
+    "Thresholded_Combined",
+)
+for config_name in experiment.variation_names:
+    plot_thresholded_combined_histogram(
+        binary,
+        config_name,
+        threshold_metrics["threshold"],
+        threshold_histogram_path,
+    )
