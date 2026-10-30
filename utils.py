@@ -5,6 +5,7 @@ import os
 import json
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 
 
 def load_data(data_path, sample_name_path, wavelength_path):
@@ -128,3 +129,24 @@ def plot_wavelength_component(task):
 		save_path=f"{save_subdir}/{wavelength} distribution.png",
 	)
 	return index, wavelength
+
+def plot_heatmap_matrix(data, save_path=None):
+    matrix = np.asarray(data)
+    if matrix.ndim != 2 or matrix.shape[0] == 0 or matrix.shape[1] == 0:
+        raise ValueError("data must be a non-empty 2D list")
+
+    mask = np.triu(np.ones_like(data, dtype=bool))
+
+    plt.figure(figsize = (18,18))
+    plt.rcParams.update({'font.size': 12})
+    sns.heatmap(matrix, cmap="coolwarm",vmin = -1, vmax = 1, center = 0, mask=mask)
+    plt.xlabel("Wavelength indices")
+    plt.ylabel("Wavelength indices")
+    plt.tight_layout()
+    if save_path is not None:
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        plt.close()
+        return True
+
+    plt.show()
+    return False

@@ -107,6 +107,21 @@ class ExperimentConfiguration:
                 correlations[wavelength_index] = stats.spearmanr(first, second).statistic
             return correlations
 
+    def spearman_matrix_wavelength_correlations(self) -> np.ndarray:
+        correlations = np.full((self.wavelength_count, self.wavelength_count),np.nan,dtype=float)
+
+        for wavelength_index_1 in tqdm(range(self.wavelength_count - 1) ,ascii=True,desc="Spearman Adjacent Wvs Matrix"):
+            for wavelength_index_2 in range(wavelength_index_1 + 1, self.wavelength_count):
+                first = self.data[:, wavelength_index_1]
+                second = self.data[:, wavelength_index_2]
+                if np.ptp(first) == 0 or np.ptp(second) == 0:
+                    continue
+                correlation = stats.spearmanr(first, second).statistic
+                #correlations[wavelength_index_1, wavelength_index_2] = correlation
+                correlations[wavelength_index_2, wavelength_index_1] = correlation
+
+        return correlations
+
     """
     def pearson_same_print_correlations(self, group_size: int | None = None) -> dict[object, float]:
         

@@ -25,6 +25,8 @@ def main():
 				print(f"Wavelength {wavelength}mm plot saved...")
 		return
 
+	correlation_matrix = experiment.spearman_matrix_wavelength_correlations()
+	plot_heatmap_matrix(correlation_matrix,f"{res_loc}/Pearson_wv_heatmap.png")
 	
 	#print(experiment.kolmogorov_smirnov_normality_wvs())
 	#print(experiment.kolmogorov_smirnov_normality_configs())
@@ -33,6 +35,7 @@ def main():
 	#	plot_series(experiment.wavelengths,(spectrum, f"CCCC plot measurement 1", "b"),title="CCCC plot",xlabel=f"Wavelengths",ylabel=f"Extinction values")
 	#print(experiment.mutual_information_adjacent_wavelengths())
 
+	"""
 	min_max_array = experiment.calculate_component_min_max()
 	save_to_csv(min_max_array,res_loc,"Min_Max_per_wv",col=["wv","min","max"])
 
@@ -107,7 +110,7 @@ def main():
 	)
 
 	print(f"Standard Deviation vs Wavelength Plot saved") if plot_status else print(f"Standard Deviation vs Wavelength Plot not saved...")
-
+"""
 
 if __name__ == "__main__":
 	main()
